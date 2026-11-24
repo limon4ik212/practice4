@@ -118,14 +118,25 @@ def effective_permissions(position, roles):
     объединение прав всех ролей должности. roles - содержимое roles.json.
     Пример: effective_permissions("manager", roles) ->
             ["crm.edit", "crm.read", "mail.use", "portal.read"]"""
-    raise NotImplementedError
+    perms = set()
+    for role in roles["positions"].get(position, []):
+        perms.update(roles["roles"][role])
+    return sorted(perms)
 
 
 def write_role_matrix(roles, path="role_matrix.csv"):
     """Задание 3. CSV-матрица: строки - должности (в порядке roles.json),
     столбцы - все права по алфавиту, в ячейке "+" если право есть, иначе пусто.
     Первая строка: position,<право1>,<право2>,..."""
-    raise NotImplementedError
+    import csv
+
+    all_perms = sorted({p for perms in roles["roles"].values() for p in perms})
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["position"] + all_perms)
+        for position in roles["positions"]:
+            have = set(effective_permissions(position, roles))
+            w.writerow([position] + ["+" if p in have else "" for p in all_perms])
 
 
 def create_account(emp, accounts, grants, roles, policy):
@@ -137,7 +148,19 @@ def create_account(emp, accounts, grants, roles, policy):
     4) добавить в grants по строке на каждое право из effective_permissions();
     5) log_action("create", login, "<ФИО>, <должность>").
     Возвращает (login, password). Пароль никуда не записывается."""
-    raise NotImplementedError
+    login = make_login(emp["fullname"], {a["login"] for a in accounts})
+    password = generate_password(policy)
+    accounts.append({
+        "login": login,
+        "emp_id": emp["emp_id"],
+        "created": today().isoformat(),
+        "last_login": "",
+        "disabled_at": "",
+    })
+    for perm in effective_permissions(emp["position"], roles):
+        grants.append({"login": login, "permission": perm})
+    log_action("create", login, f"{emp['fullname']}, {emp['position']}")
+    return login, password
 
 
 if __name__ == "__main__":
