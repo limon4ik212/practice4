@@ -71,13 +71,46 @@ def check_password(password, login, policy):
               в конце, если в ней 3 и более символа), без учёта регистра;
     "COMMON" - пароль (без учёта регистра) есть в COMMON_PASSWORDS.
     Пустой список [] - пароль подходит."""
-    raise NotImplementedError
+    errors = []
+
+    if len(password) < policy["min_length"]:
+        errors.append("LENGTH")
+
+    classes = 0
+    if any(c.islower() for c in password):
+        classes += 1
+    if any(c.isupper() for c in password):
+        classes += 1
+    if any(c.isdigit() for c in password):
+        classes += 1
+    if any(not c.isalnum() for c in password):
+        classes += 1
+    if classes < policy["min_classes"]:
+        errors.append("CLASSES")
+
+    surname = login.split(".", 1)[-1].rstrip(string.digits)
+    if len(surname) >= 3 and surname.lower() in password.lower():
+        errors.append("LOGIN")
+
+    if password.lower() in COMMON_PASSWORDS:
+        errors.append("COMMON")
+
+    return errors
 
 
 def generate_password(policy):
     """Задание 2. Случайный пароль длиной max(policy["min_length"], 12),
     в котором есть все 4 класса символов. Использовать только модуль secrets."""
-    raise NotImplementedError
+    length = max(policy["min_length"], 12)
+    symbols = "!#$%&*-_=+?@^"
+    groups = [string.ascii_lowercase, string.ascii_uppercase, string.digits, symbols]
+    alphabet = "".join(groups)
+
+    # по одному символу из каждого класса, остальное - из общего алфавита
+    chars = [secrets.choice(g) for g in groups]
+    chars += [secrets.choice(alphabet) for _ in range(length - len(groups))]
+    secrets.SystemRandom().shuffle(chars)
+    return "".join(chars)
 
 
 def effective_permissions(position, roles):
